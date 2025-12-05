@@ -1,0 +1,129 @@
+<Window x:Class="TestStandClone.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:TestStandClone.UI"
+        xmlns:vm="clr-namespace:TestStandClone.UI.ViewModels"
+        xmlns:converters="clr-namespace:TestStandClone.UI.Converters"
+        mc:Ignorable="d"
+        Title="TestStand Clone - PoC" Height="600" Width="1000"
+        WindowStartupLocation="CenterScreen">
+
+    <!-- Window-level DataContext -->
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+
+    <!-- Resources -->
+    <Window.Resources>
+        <converters:StatusToColorConverter x:Key="StatusToColorConverter" />
+        <local:RowNumberConverter x:Key="RowNumberConverter" />
+        <local:TypeNameConverter x:Key="TypeNameConverter" />
+    </Window.Resources>
+
+    <!-- Main Content -->
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <TextBlock Text="Sequence: " FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding LoadedSequence.Name}" FontSize="16" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <!-- Step List -->
+        <DataGrid Grid.Row="1" 
+                  ItemsSource="{Binding LoadedSequence.Steps}"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="True"
+                  SelectionMode="Single"
+                  CanUserAddRows="False"
+                  CanUserDeleteRows="False"
+                  CanUserResizeRows="False"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Horizontal"
+                  AlternatingRowBackground="#F5F5F5"
+                  RowHeight="30">
+            
+            <DataGrid.Columns>
+                <!-- Step Number -->
+                <DataGridTextColumn Header="#" Width="40"
+                    Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Converter={StaticResource RowNumberConverter}}" />
+
+                <!-- Step Name -->
+                <DataGridTextColumn Header="Step Name" 
+                                    Binding="{Binding Name}" 
+                                    Width="200" />
+
+                <!-- Step Type -->
+                <DataGridTextColumn Header="Type" 
+                                    Binding="{Binding Converter={StaticResource TypeNameConverter}}"
+                                    Width="120" />
+
+                <!-- Status -->
+                <DataGridTemplateColumn Header="Status" Width="100">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Border Background="{Binding Status, Converter={StaticResource StatusToColorConverter}}"
+                                    CornerRadius="3"
+                                    Padding="5,2"
+                                    HorizontalAlignment="Left">
+                                <TextBlock Text="{Binding Status}" 
+                                           Foreground="White" 
+                                           FontWeight="SemiBold" />
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+
+                <!-- Result Text -->
+                <DataGridTextColumn Header="Result" 
+                                    Binding="{Binding ResultText}" 
+                                    Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Control Buttons -->
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Center" 
+                    Margin="0,10,0,0">
+            
+            <Button Content="Execute Sequence" 
+                    Command="{Binding RunSequenceCommand}"
+                    Width="150" 
+                    Height="40" 
+                    Margin="5,0"
+                    FontSize="14"
+                    FontWeight="Bold"
+                    Background="#4CAF50"
+                    Foreground="White"
+                    BorderThickness="0">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Style.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#CCCCCC" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <Button Content="Reset" 
+                    Command="{Binding ResetCommand}"
+                    Width="100" 
+                    Height="40" 
+                    Margin="5,0"
+                    FontSize="14"
+                    Background="#FF9800"
+                    Foreground="White"
+                    BorderThickness="0" />
+        </StackPanel>
+    </Grid>
+</Window>

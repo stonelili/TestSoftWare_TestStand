@@ -1,8 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "N/SlLVr0qlg=",
+  "dgSpecHash": "FTLjXa3rdv0=",
   "success": true,
-  "projectFilePath": "E:\\TestSoftware\\TestSoftware.csproj",
-  "expectedPackageFiles": [],
+  "projectFilePath": "/home/runner/work/TestSoftWare_TestStand/TestSoftWare_TestStand/TestSoftware.csproj",
+  "expectedPackageFiles": [
+    "/home/runner/.nuget/packages/microsoft.windowsdesktop.app.ref/8.0.22/microsoft.windowsdesktop.app.ref.8.0.22.nupkg.sha512"
+  ],
   "logs": []
 }
