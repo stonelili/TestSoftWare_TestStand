@@ -5,8 +5,6 @@ namespace TestStandClone.Core
     /// </summary>
     public class NumericLimitStep : TestStep
     {
-        private static readonly Random _random = new Random();
-
         /// <summary>
         /// The lower limit for the comparison.
         /// </summary>
@@ -58,8 +56,8 @@ namespace TestStandClone.Core
         /// <param name="context">The execution context.</param>
         public override Task ExecuteAsync(Context context)
         {
-            // Generate a random value within the specified range
-            MeasuredValue = MinGeneratedValue + (_random.NextDouble() * (MaxGeneratedValue - MinGeneratedValue));
+            // Generate a random value within the specified range using thread-safe Random.Shared
+            MeasuredValue = MinGeneratedValue + (Random.Shared.NextDouble() * (MaxGeneratedValue - MinGeneratedValue));
             
             // Round to 2 decimal places for display
             MeasuredValue = Math.Round(MeasuredValue, 2);
