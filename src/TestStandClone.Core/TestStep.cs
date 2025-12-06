@@ -13,6 +13,11 @@ namespace TestStandClone.Core
         private Guid _id = Guid.NewGuid();
         private StepStatus _status = StepStatus.Idle;
         private string _resultText = string.Empty;
+        private bool _hasBreakpoint;
+        private DateTime? _startTime;
+        private DateTime? _endTime;
+        private string _description = string.Empty;
+        private bool _isEnabled = true;
 
         /// <summary>
         /// The name of the test step.
@@ -77,6 +82,95 @@ namespace TestStandClone.Core
                 }
             }
         }
+
+        /// <summary>
+        /// Description of the test step.
+        /// </summary>
+        public string Description
+        {
+            get => _description;
+            set
+            {
+                if (_description != value)
+                {
+                    _description = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether this step has a breakpoint set.
+        /// </summary>
+        public bool HasBreakpoint
+        {
+            get => _hasBreakpoint;
+            set
+            {
+                if (_hasBreakpoint != value)
+                {
+                    _hasBreakpoint = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether this step is enabled for execution.
+        /// </summary>
+        public bool IsEnabled
+        {
+            get => _isEnabled;
+            set
+            {
+                if (_isEnabled != value)
+                {
+                    _isEnabled = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Start time of step execution.
+        /// </summary>
+        public DateTime? StartTime
+        {
+            get => _startTime;
+            set
+            {
+                if (_startTime != value)
+                {
+                    _startTime = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(ExecutionTime));
+                }
+            }
+        }
+
+        /// <summary>
+        /// End time of step execution.
+        /// </summary>
+        public DateTime? EndTime
+        {
+            get => _endTime;
+            set
+            {
+                if (_endTime != value)
+                {
+                    _endTime = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(ExecutionTime));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Total execution time for this step.
+        /// </summary>
+        public TimeSpan? ExecutionTime => EndTime.HasValue && StartTime.HasValue 
+            ? EndTime.Value - StartTime.Value 
+            : null;
 
         /// <summary>
         /// Executes the test step asynchronously.

@@ -7,8 +7,9 @@
         xmlns:vm="clr-namespace:TestStandClone.UI.ViewModels"
         xmlns:converters="clr-namespace:TestStandClone.UI.Converters"
         mc:Ignorable="d"
-        Title="TestStand Clone - PoC" Height="600" Width="1000"
-        WindowStartupLocation="CenterScreen">
+        Title="TestStand Clone - Sequence Editor" Height="800" Width="1400"
+        WindowStartupLocation="CenterScreen"
+        Background="#F0F0F0">
 
     <!-- Window-level DataContext -->
     <Window.DataContext>
@@ -20,110 +21,307 @@
         <converters:StatusToColorConverter x:Key="StatusToColorConverter" />
         <converters:RowNumberConverter x:Key="RowNumberConverter" />
         <converters:TypeNameConverter x:Key="TypeNameConverter" />
+        
+        <!-- Boolean to Visibility Converter -->
+        <BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
+        
+        <!-- Breakpoint indicator style -->
+        <Style x:Key="BreakpointStyle" TargetType="Ellipse">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasBreakpoint}" Value="True">
+                    <Setter Property="Fill" Value="Red" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasBreakpoint}" Value="False">
+                    <Setter Property="Fill" Value="Transparent" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
-    <!-- Main Content -->
-    <Grid Margin="10">
+    <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-            <TextBlock Text="Sequence: " FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding LoadedSequence.Name}" FontSize="16" VerticalAlignment="Center" />
-        </StackPanel>
+        <!-- Menu Bar -->
+        <Menu Grid.Row="0" Background="#E8E8E8">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New Sequence" />
+                <MenuItem Header="_Open Sequence" />
+                <MenuItem Header="_Save Sequence" />
+                <Separator />
+                <MenuItem Header="E_xit" />
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Cut" />
+                <MenuItem Header="_Copy" />
+                <MenuItem Header="_Paste" />
+                <Separator />
+                <MenuItem Header="_Insert Step" />
+                <MenuItem Header="_Delete Step" />
+            </MenuItem>
+            <MenuItem Header="_Execute">
+                <MenuItem Header="_Run" Command="{Binding RunSequenceCommand}" />
+                <MenuItem Header="_Pause" Command="{Binding PauseCommand}" />
+                <MenuItem Header="Re_sume" Command="{Binding ResumeCommand}" />
+                <MenuItem Header="_Abort" Command="{Binding AbortCommand}" />
+                <Separator />
+                <MenuItem Header="Step _Over" Command="{Binding StepOverCommand}" />
+                <MenuItem Header="Toggle _Breakpoint" Command="{Binding ToggleBreakpointCommand}" />
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="_Step Properties" IsCheckable="True" IsChecked="True" />
+                <MenuItem Header="_Execution Window" IsCheckable="True" IsChecked="True" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_About" />
+            </MenuItem>
+        </Menu>
 
-        <!-- Step List -->
-        <DataGrid Grid.Row="1" 
-                  ItemsSource="{Binding LoadedSequence.Steps}"
-                  AutoGenerateColumns="False"
-                  IsReadOnly="True"
-                  SelectionMode="Single"
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  CanUserResizeRows="False"
-                  HeadersVisibility="Column"
-                  GridLinesVisibility="Horizontal"
-                  AlternatingRowBackground="#F5F5F5"
-                  RowHeight="30">
-            
-            <DataGrid.Columns>
-                <!-- Step Number -->
-                <DataGridTextColumn Header="#" Width="40"
-                    Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Converter={StaticResource RowNumberConverter}}" />
+        <!-- Toolbar -->
+        <ToolBarTray Grid.Row="1" Background="#E0E0E0">
+            <ToolBar Band="1" BandIndex="1">
+                <Button Command="{Binding RunSequenceCommand}" ToolTip="Run Sequence (F5)" Padding="5,2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="▶" Foreground="Green" FontWeight="Bold" Margin="0,0,5,0" />
+                        <TextBlock Text="Run" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding PauseCommand}" ToolTip="Pause (F6)" Padding="5,2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⏸" Foreground="Orange" FontWeight="Bold" Margin="0,0,5,0" />
+                        <TextBlock Text="Pause" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding ResumeCommand}" ToolTip="Resume (F5)" Padding="5,2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="▶" Foreground="Blue" FontWeight="Bold" Margin="0,0,5,0" />
+                        <TextBlock Text="Resume" />
+                    </StackPanel>
+                </Button>
+                <Button Command="{Binding AbortCommand}" ToolTip="Abort (Shift+F5)" Padding="5,2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⏹" Foreground="Red" FontWeight="Bold" Margin="0,0,5,0" />
+                        <TextBlock Text="Abort" />
+                    </StackPanel>
+                </Button>
+                <Separator />
+                <Button Command="{Binding StepOverCommand}" ToolTip="Step Over (F10)" Padding="5,2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⤵" Foreground="Purple" FontWeight="Bold" Margin="0,0,5,0" />
+                        <TextBlock Text="Step" />
+                    </StackPanel>
+                </Button>
+                <Separator />
+                <Button Command="{Binding ToggleBreakpointCommand}" ToolTip="Toggle Breakpoint (F9)" Padding="5,2">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="10" Height="10" Fill="Red" Margin="0,0,5,0" />
+                        <TextBlock Text="Breakpoint" />
+                    </StackPanel>
+                </Button>
+                <Separator />
+                <Button Command="{Binding ResetCommand}" ToolTip="Reset" Padding="5,2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="↺" FontWeight="Bold" Margin="0,0,5,0" />
+                        <TextBlock Text="Reset" />
+                    </StackPanel>
+                </Button>
+            </ToolBar>
+        </ToolBarTray>
 
-                <!-- Step Name -->
-                <DataGridTextColumn Header="Step Name" 
-                                    Binding="{Binding Name}" 
-                                    Width="200" />
+        <!-- Main Content Area -->
+        <Grid Grid.Row="2" Margin="5">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="400" />
+                <ColumnDefinition Width="5" />
+                <ColumnDefinition Width="300" />
+            </Grid.ColumnDefinitions>
 
-                <!-- Step Type -->
-                <DataGridTextColumn Header="Type" 
-                                    Binding="{Binding Converter={StaticResource TypeNameConverter}}"
-                                    Width="120" />
+            <!-- Sequence Editor Panel -->
+            <Border Grid.Column="0" BorderBrush="#CCCCCC" BorderThickness="1" Background="White">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                <!-- Status -->
-                <DataGridTemplateColumn Header="Status" Width="100">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <Border Background="{Binding Status, Converter={StaticResource StatusToColorConverter}}"
-                                    CornerRadius="3"
-                                    Padding="5,2"
-                                    HorizontalAlignment="Left">
-                                <TextBlock Text="{Binding Status}" 
-                                           Foreground="White" 
-                                           FontWeight="SemiBold" />
-                            </Border>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
+                    <!-- Sequence Header -->
+                    <Border Grid.Row="0" Background="#0078D4" Padding="10,8">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Sequence: " Foreground="White" FontWeight="Bold" FontSize="14" />
+                                <TextBlock Text="{Binding LoadedSequence.Name}" Foreground="White" FontSize="14" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding LoadedSequence.Description}" Foreground="#DDDDDD" FontSize="11" Margin="0,3,0,0" />
+                        </StackPanel>
+                    </Border>
 
-                <!-- Result Text -->
-                <DataGridTextColumn Header="Result" 
-                                    Binding="{Binding ResultText}" 
-                                    Width="*" />
-            </DataGrid.Columns>
-        </DataGrid>
+                    <!-- Steps DataGrid -->
+                    <DataGrid Grid.Row="1" 
+                              ItemsSource="{Binding LoadedSequence.Steps}"
+                              SelectedItem="{Binding SelectedStep}"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              SelectionMode="Single"
+                              CanUserAddRows="False"
+                              CanUserDeleteRows="False"
+                              CanUserResizeRows="False"
+                              HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal"
+                              AlternatingRowBackground="#F9F9F9"
+                              RowHeight="28"
+                              BorderThickness="0">
+                        
+                        <DataGrid.Columns>
+                            <!-- Breakpoint Indicator -->
+                            <DataGridTemplateColumn Header="" Width="25">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Ellipse Width="12" Height="12" 
+                                                 Style="{StaticResource BreakpointStyle}"
+                                                 Stroke="DarkRed" StrokeThickness="1"
+                                                 HorizontalAlignment="Center" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
 
-        <!-- Control Buttons -->
-        <StackPanel Grid.Row="2" 
-                    Orientation="Horizontal" 
-                    HorizontalAlignment="Center" 
-                    Margin="0,10,0,0">
-            
-            <Button Content="Execute Sequence" 
-                    Command="{Binding RunSequenceCommand}"
-                    Width="150" 
-                    Height="40" 
-                    Margin="5,0"
-                    FontSize="14"
-                    FontWeight="Bold"
-                    Background="#4CAF50"
-                    Foreground="White"
-                    BorderThickness="0">
-                <Button.Style>
-                    <Style TargetType="Button">
-                        <Style.Triggers>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Background" Value="#CCCCCC" />
-                            </Trigger>
-                        </Style.Triggers>
-                    </Style>
-                </Button.Style>
-            </Button>
+                            <!-- Step Number -->
+                            <DataGridTextColumn Header="#" Width="35"
+                                Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Converter={StaticResource RowNumberConverter}}" />
 
-            <Button Content="Reset" 
-                    Command="{Binding ResetCommand}"
-                    Width="100" 
-                    Height="40" 
-                    Margin="5,0"
-                    FontSize="14"
-                    Background="#FF9800"
-                    Foreground="White"
-                    BorderThickness="0" />
-        </StackPanel>
+                            <!-- Step Name -->
+                            <DataGridTextColumn Header="Step Name" 
+                                                Binding="{Binding Name}" 
+                                                Width="180" />
+
+                            <!-- Step Type -->
+                            <DataGridTextColumn Header="Type" 
+                                                Binding="{Binding Converter={StaticResource TypeNameConverter}}"
+                                                Width="100" />
+
+                            <!-- Status -->
+                            <DataGridTemplateColumn Header="Status" Width="90">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{Binding Status, Converter={StaticResource StatusToColorConverter}}"
+                                                CornerRadius="3"
+                                                Padding="5,2"
+                                                HorizontalAlignment="Left">
+                                            <TextBlock Text="{Binding Status}" 
+                                                       Foreground="White" 
+                                                       FontWeight="SemiBold"
+                                                       FontSize="11" />
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Execution Time -->
+                            <DataGridTemplateColumn Header="Time" Width="70">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding ExecutionTime, StringFormat='{}{0:mm\\:ss\\.fff}'}" 
+                                                   FontSize="11" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Result Text -->
+                            <DataGridTextColumn Header="Result" 
+                                                Binding="{Binding ResultText}" 
+                                                Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+
+            <!-- Grid Splitter -->
+            <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#E0E0E0" />
+
+            <!-- Properties Panel -->
+            <Border Grid.Column="2" BorderBrush="#CCCCCC" BorderThickness="1" Background="White">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Properties Header -->
+                    <Border Grid.Row="0" Background="#0078D4" Padding="10,8">
+                        <TextBlock Text="Step Properties" Foreground="White" FontWeight="Bold" FontSize="14" />
+                    </Border>
+
+                    <!-- Properties Content -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="10">
+                        <StackPanel>
+                            <!-- Show when no step is selected -->
+                            <TextBlock Text="Select a step to view properties" 
+                                       FontStyle="Italic" Foreground="Gray"
+                                       Visibility="{Binding SelectedStep, Converter={StaticResource BoolToVisConverter}, ConverterParameter=Invert}" />
+
+                            <!-- Step Properties when selected -->
+                            <StackPanel Visibility="{Binding SelectedStep, Converter={StaticResource BoolToVisConverter}}">
+                                <TextBlock Text="Name" FontWeight="Bold" Margin="0,0,0,3" />
+                                <TextBox Text="{Binding SelectedStep.Name, Mode=OneWay}" IsReadOnly="True" Margin="0,0,0,10" Padding="5,3" />
+
+                                <TextBlock Text="Type" FontWeight="Bold" Margin="0,0,0,3" />
+                                <TextBox Text="{Binding SelectedStep, Converter={StaticResource TypeNameConverter}, Mode=OneWay}" IsReadOnly="True" Margin="0,0,0,10" Padding="5,3" />
+
+                                <TextBlock Text="Status" FontWeight="Bold" Margin="0,0,0,3" />
+                                <Border Background="{Binding SelectedStep.Status, Converter={StaticResource StatusToColorConverter}}"
+                                        CornerRadius="3" Padding="8,4" HorizontalAlignment="Left" Margin="0,0,0,10">
+                                    <TextBlock Text="{Binding SelectedStep.Status}" Foreground="White" FontWeight="SemiBold" />
+                                </Border>
+
+                                <TextBlock Text="Result" FontWeight="Bold" Margin="0,0,0,3" />
+                                <TextBox Text="{Binding SelectedStep.ResultText, Mode=OneWay}" IsReadOnly="True" 
+                                         TextWrapping="Wrap" MinHeight="50" Margin="0,0,0,10" Padding="5,3" />
+
+                                <TextBlock Text="Execution Time" FontWeight="Bold" Margin="0,0,0,3" />
+                                <TextBox Text="{Binding SelectedStep.ExecutionTime, StringFormat='{}{0:mm\\:ss\\.fff}', Mode=OneWay}" 
+                                         IsReadOnly="True" Margin="0,0,0,10" Padding="5,3" />
+
+                                <CheckBox Content="Has Breakpoint" IsChecked="{Binding SelectedStep.HasBreakpoint}" Margin="0,0,0,10" />
+                                <CheckBox Content="Is Enabled" IsChecked="{Binding SelectedStep.IsEnabled}" Margin="0,0,0,10" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="3" Background="#007ACC">
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Status: " Foreground="White" FontWeight="Bold" />
+                    <TextBlock Text="{Binding ExecutionStatus}" Foreground="White" />
+                </StackPanel>
+            </StatusBarItem>
+            <Separator />
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Sequence: " Foreground="White" />
+                    <TextBlock Text="{Binding LoadedSequence.Status}" Foreground="White" />
+                </StackPanel>
+            </StatusBarItem>
+            <Separator />
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Steps: " Foreground="White" />
+                    <TextBlock Text="{Binding LoadedSequence.Steps.Count}" Foreground="White" />
+                </StackPanel>
+            </StatusBarItem>
+            <Separator />
+            <StatusBarItem HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Execution Time: " Foreground="White" />
+                    <TextBlock Text="{Binding LoadedSequence.ExecutionTime, StringFormat='{}{0:mm\\:ss\\.fff}'}" Foreground="White" />
+                </StackPanel>
+            </StatusBarItem>
+        </StatusBar>
     </Grid>
 </Window>
