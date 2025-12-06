@@ -1,12 +1,13 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using TestStandClone.Core.Callbacks;
 using TestStandClone.Core.Steps;
 
 namespace TestStandClone.Core
 {
     /// <summary>
     /// Execution engine for running test sequences.
-    /// Similar to TestStand's execution engine with support for pause, resume, abort, and breakpoints.
+    /// Similar to TestStand's execution engine with support for pause, resume, abort, breakpoints, and callbacks.
     /// </summary>
     public class Engine : INotifyPropertyChanged
     {
@@ -16,6 +17,12 @@ namespace TestStandClone.Core
         private TestStep? _currentStep;
         private readonly SemaphoreSlim _pauseSemaphore = new SemaphoreSlim(0, 1);
         private readonly object _lockObject = new object();
+        private readonly CallbackManager _callbackManager = new CallbackManager();
+
+        /// <summary>
+        /// Callback manager for this engine.
+        /// </summary>
+        public CallbackManager CallbackManager => _callbackManager;
 
         /// <summary>
         /// Event raised when execution is paused.
@@ -41,6 +48,11 @@ namespace TestStandClone.Core
         /// Event raised after each step executes.
         /// </summary>
         public event EventHandler<StepEventArgs>? AfterStepExecute;
+
+        /// <summary>
+        /// Event raised when an error occurs.
+        /// </summary>
+        public event EventHandler<EngineErrorEventArgs>? OnError;
 
         /// <summary>
         /// Safely releases the pause semaphore if not already released.
@@ -211,6 +223,9 @@ namespace TestStandClone.Core
 
             try
             {
+                // Execute SequenceStart callbacks
+                await _callbackManager.ExecuteCallbacksAsync(CallbackType.SequenceStart, context);
+
                 // Execute Setup steps
                 if (sequence.SetupSteps.Count > 0)
                 {
@@ -237,6 +252,9 @@ namespace TestStandClone.Core
                     await ExecuteStepGroupAsync(sequence.CleanupSteps, context);
                 }
 
+                // Execute SequenceEnd callbacks
+                await _callbackManager.ExecuteCallbacksAsync(CallbackType.SequenceEnd, context);
+
                 // Set final sequence status
                 sequence.EndTime = DateTime.Now;
                 if (IsAborted)
@@ -252,10 +270,17 @@ namespace TestStandClone.Core
                     sequence.Status = SequenceStatus.Passed;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 sequence.EndTime = DateTime.Now;
                 sequence.Status = SequenceStatus.Error;
+                
+                // Execute OnError callbacks
+                context.SetValue("ErrorMessage", ex.Message);
+                context.SetValue("ErrorStep", CurrentStep?.Name ?? "Unknown");
+                await _callbackManager.ExecuteCallbacksAsync(CallbackType.OnError, context);
+                OnError?.Invoke(this, new EngineErrorEventArgs(ex, CurrentStep));
+                
                 throw;
             }
         }
@@ -273,6 +298,24 @@ namespace TestStandClone.Core
                 var step = steps[currentIndex];
                 CurrentStep = step;
 
+                // Check if step is enabled
+                if (!step.IsEnabled)
+                {
+                    step.Status = StepStatus.Idle;
+                    step.ResultText = "Skipped (Disabled)";
+                    currentIndex++;
+                    continue;
+                }
+
+                // Check precondition
+                if (!step.EvaluatePrecondition(context))
+                {
+                    step.Status = StepStatus.Idle;
+                    step.ResultText = "Skipped (Precondition)";
+                    currentIndex++;
+                    continue;
+                }
+
                 // Check for breakpoint
                 if (step.HasBreakpoint)
                 {
@@ -289,25 +332,16 @@ namespace TestStandClone.Core
                     break;
                 }
 
+                // Execute PreStep callbacks
+                context.SetValue("CurrentStep", step);
+                await _callbackManager.ExecuteCallbacksAsync(CallbackType.PreStep, context);
+
                 BeforeStepExecute?.Invoke(this, new StepEventArgs(step));
 
                 try
                 {
-                    // Update status to Running
-                    step.Status = StepStatus.Running;
-                    step.ResultText = "Executing...";
-                    step.StartTime = DateTime.Now;
-
-                    // Execute the step
-                    await step.ExecuteAsync(context);
-
-                    step.EndTime = DateTime.Now;
-
-                    // If status wasn't set by the step, mark as Passed
-                    if (step.Status == StepStatus.Running)
-                    {
-                        step.Status = StepStatus.Passed;
-                    }
+                    // Execute step with loop support
+                    await ExecuteStepWithLoopAsync(step, context);
 
                     // Check for flow control
                     if (step is IFlowControlStep flowControl && flowControl.RequestsFlowChange)
@@ -316,8 +350,25 @@ namespace TestStandClone.Core
                         if (targetIndex >= 0)
                         {
                             currentIndex = targetIndex;
+                            await _callbackManager.ExecuteCallbacksAsync(CallbackType.PostStep, context);
+                            AfterStepExecute?.Invoke(this, new StepEventArgs(step));
                             continue;
                         }
+                    }
+
+                    // Handle post-actions
+                    int? gotoIndex = HandlePostAction(step, steps);
+                    if (gotoIndex.HasValue)
+                    {
+                        if (gotoIndex.Value == -1)
+                        {
+                            // Terminate sequence
+                            break;
+                        }
+                        currentIndex = gotoIndex.Value;
+                        await _callbackManager.ExecuteCallbacksAsync(CallbackType.PostStep, context);
+                        AfterStepExecute?.Invoke(this, new StepEventArgs(step));
+                        continue;
                     }
 
                     // Track if any step failed
@@ -333,8 +384,15 @@ namespace TestStandClone.Core
                     step.Status = StepStatus.Error;
                     step.ResultText = $"Error: {ex.Message}";
                     allPassed = false;
+
+                    // Execute OnError callbacks
+                    context.SetValue("ErrorMessage", ex.Message);
+                    await _callbackManager.ExecuteCallbacksAsync(CallbackType.OnError, context);
+                    OnError?.Invoke(this, new EngineErrorEventArgs(ex, step));
                 }
 
+                // Execute PostStep callbacks
+                await _callbackManager.ExecuteCallbacksAsync(CallbackType.PostStep, context);
                 AfterStepExecute?.Invoke(this, new StepEventArgs(step));
 
                 // Auto-pause after step if single-stepping
@@ -349,6 +407,106 @@ namespace TestStandClone.Core
 
             CurrentStep = null;
             return allPassed;
+        }
+
+        /// <summary>
+        /// Executes a step with loop support.
+        /// </summary>
+        private async Task ExecuteStepWithLoopAsync(TestStep step, Context context)
+        {
+            int iterations = step.LoopCount;
+            step.CurrentLoopIteration = 0;
+
+            for (int i = 0; i < iterations && !IsAborted; i++)
+            {
+                step.CurrentLoopIteration = i + 1;
+                
+                // Update status to Running
+                step.Status = StepStatus.Running;
+                step.ResultText = iterations > 1 ? $"Executing (iteration {i + 1}/{iterations})..." : "Executing...";
+                step.StartTime = DateTime.Now;
+
+                // Execute the step
+                await step.ExecuteAsync(context);
+
+                step.EndTime = DateTime.Now;
+
+                // If status wasn't set by the step, mark as Passed
+                if (step.Status == StepStatus.Running)
+                {
+                    step.Status = StepStatus.Passed;
+                }
+
+                // Check loop conditions
+                if (step.Status == StepStatus.Passed && step.LoopOnPass && i < iterations - 1)
+                {
+                    continue; // Keep looping
+                }
+                if (step.Status == StepStatus.Failed && step.LoopOnFail && i < iterations - 1)
+                {
+                    continue; // Keep looping
+                }
+                if (step.Status == StepStatus.Passed && !step.LoopOnPass)
+                {
+                    break; // Exit loop early on pass
+                }
+                if (step.Status == StepStatus.Failed && !step.LoopOnFail)
+                {
+                    break; // Exit loop early on fail
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles post-action for a step.
+        /// Returns the target step index, or null for continue, or -1 for terminate.
+        /// </summary>
+        private int? HandlePostAction(TestStep step, IList<TestStep> steps)
+        {
+            PostAction action = step.Status == StepStatus.Passed ? step.OnPass : step.OnFail;
+            string gotoStep = step.Status == StepStatus.Passed ? step.GotoStepOnPass : step.GotoStepOnFail;
+
+            switch (action)
+            {
+                case PostAction.Continue:
+                    return null;
+
+                case PostAction.Goto:
+                    if (!string.IsNullOrEmpty(gotoStep))
+                    {
+                        int targetIndex = FindStepIndexByName(steps, gotoStep);
+                        if (targetIndex >= 0)
+                        {
+                            return targetIndex;
+                        }
+                    }
+                    return null;
+
+                case PostAction.Terminate:
+                    return -1;
+
+                case PostAction.TerminateWithFail:
+                    step.Status = StepStatus.Failed;
+                    return -1;
+
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// Finds the index of a step by name.
+        /// </summary>
+        private static int FindStepIndexByName(IList<TestStep> steps, string stepName)
+        {
+            for (int i = 0; i < steps.Count; i++)
+            {
+                if (steps[i].Name.Equals(stepName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return i;
+                }
+            }
+            return -1;
         }
 
         /// <summary>
@@ -398,6 +556,21 @@ namespace TestStandClone.Core
 
         public StepEventArgs(TestStep step)
         {
+            Step = step;
+        }
+    }
+
+    /// <summary>
+    /// Event arguments for engine error events.
+    /// </summary>
+    public class EngineErrorEventArgs : EventArgs
+    {
+        public Exception Exception { get; }
+        public TestStep? Step { get; }
+
+        public EngineErrorEventArgs(Exception exception, TestStep? step)
+        {
+            Exception = exception;
             Step = step;
         }
     }

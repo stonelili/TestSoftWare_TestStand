@@ -149,7 +149,7 @@ namespace TestStandClone.Core.Serialization
                     dto.Properties["targetLabelId"] = gotoStep.TargetLabelId;
                     break;
                 case Steps.LoopStep loop:
-                    dto.Properties["loopCount"] = loop.LoopCount;
+                    dto.Properties["iterations"] = loop.Iterations;
                     dto.Properties["loopType"] = loop.Type.ToString();
                     break;
                 case Steps.MessagePopupStep popup:
@@ -197,7 +197,7 @@ namespace TestStandClone.Core.Serialization
                 },
                 "LoopStep" => new Steps.LoopStep
                 {
-                    LoopCount = GetIntProperty(dto.Properties, "loopCount", 1),
+                    Iterations = GetIntProperty(dto.Properties, "iterations", 1),
                     Type = Enum.TryParse<Steps.LoopType>(GetStringProperty(dto.Properties, "loopType", "Begin"), out var lt) 
                            ? lt : Steps.LoopType.Begin
                 },

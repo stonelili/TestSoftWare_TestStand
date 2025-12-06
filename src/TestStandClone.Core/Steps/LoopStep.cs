@@ -6,10 +6,24 @@ namespace TestStandClone.Core.Steps
     /// </summary>
     public class LoopStep : TestStep
     {
+        private int _loopIterations = 1;
+
         /// <summary>
-        /// The number of loop iterations.
+        /// The number of iterations for this loop step (specific to LoopStep).
+        /// Note: This shadows the base class LoopCount which is for per-step looping.
         /// </summary>
-        public int LoopCount { get; set; } = 1;
+        public int Iterations
+        {
+            get => _loopIterations;
+            set
+            {
+                if (_loopIterations != value)
+                {
+                    _loopIterations = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
 
         /// <summary>
         /// Current iteration (0-based index).
@@ -37,12 +51,12 @@ namespace TestStandClone.Core.Steps
         /// Creates a new LoopStep with specified parameters.
         /// </summary>
         /// <param name="name">The name of the step.</param>
-        /// <param name="loopCount">Number of iterations.</param>
+        /// <param name="iterations">Number of iterations.</param>
         /// <param name="type">Loop type (Begin or End).</param>
-        public LoopStep(string name, int loopCount, LoopType type)
+        public LoopStep(string name, int iterations, LoopType type)
         {
             Name = name;
-            LoopCount = loopCount;
+            Iterations = iterations;
             Type = type;
         }
 
@@ -61,7 +75,7 @@ namespace TestStandClone.Core.Steps
         public bool IncrementAndCheck()
         {
             CurrentIteration++;
-            return CurrentIteration < LoopCount;
+            return CurrentIteration < Iterations;
         }
 
         /// <summary>
@@ -74,7 +88,7 @@ namespace TestStandClone.Core.Steps
                 // Store current iteration in context
                 context.SetValue($"{Name}_Iteration", CurrentIteration);
                 Status = StepStatus.Passed;
-                ResultText = $"Loop iteration {CurrentIteration + 1} of {LoopCount}";
+                ResultText = $"Loop iteration {CurrentIteration + 1} of {Iterations}";
             }
             else // LoopType.End
             {

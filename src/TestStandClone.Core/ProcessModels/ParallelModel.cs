@@ -147,7 +147,7 @@ namespace TestStandClone.Core.ProcessModels
                 },
                 Steps.LabelStep label => new Steps.LabelStep(label.Name, label.LabelId),
                 Steps.GotoStep gotoStep => new Steps.GotoStep(gotoStep.Name, gotoStep.TargetLabelId),
-                Steps.LoopStep loop => new Steps.LoopStep(loop.Name, loop.LoopCount, loop.Type),
+                Steps.LoopStep loop => new Steps.LoopStep(loop.Name, loop.Iterations, loop.Type),
                 Steps.MessagePopupStep popup => new Steps.MessagePopupStep(popup.Name, popup.Title, popup.Message)
                 {
                     Buttons = popup.Buttons
