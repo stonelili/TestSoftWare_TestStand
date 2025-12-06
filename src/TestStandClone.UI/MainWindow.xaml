@@ -7,7 +7,7 @@
         xmlns:vm="clr-namespace:TestStandClone.UI.ViewModels"
         xmlns:converters="clr-namespace:TestStandClone.UI.Converters"
         mc:Ignorable="d"
-        Title="TestStand Clone - Sequence Editor" Height="800" Width="1400"
+        Title="{Binding WindowTitle}" Height="800" Width="1400"
         WindowStartupLocation="CenterScreen"
         Background="#F0F0F0">
 
@@ -47,9 +47,12 @@
         <!-- Menu Bar -->
         <Menu Grid.Row="0" Background="#E8E8E8">
             <MenuItem Header="_File">
-                <MenuItem Header="_New Sequence" />
-                <MenuItem Header="_Open Sequence" />
-                <MenuItem Header="_Save Sequence" />
+                <MenuItem Header="_New Sequence" Command="{Binding NewSequenceCommand}" InputGestureText="Ctrl+N" />
+                <MenuItem Header="_Open Sequence..." Command="{Binding OpenSequenceCommand}" InputGestureText="Ctrl+O" />
+                <MenuItem Header="_Save Sequence" Command="{Binding SaveSequenceCommand}" InputGestureText="Ctrl+S" />
+                <MenuItem Header="Save _As..." Command="{Binding SaveSequenceAsCommand}" InputGestureText="Ctrl+Shift+S" />
+                <Separator />
+                <MenuItem Header="_Generate Report..." Command="{Binding GenerateReportCommand}" />
                 <Separator />
                 <MenuItem Header="E_xit" />
             </MenuItem>
@@ -62,17 +65,21 @@
                 <MenuItem Header="_Delete Step" />
             </MenuItem>
             <MenuItem Header="_Execute">
-                <MenuItem Header="_Run" Command="{Binding RunSequenceCommand}" />
-                <MenuItem Header="_Pause" Command="{Binding PauseCommand}" />
-                <MenuItem Header="Re_sume" Command="{Binding ResumeCommand}" />
-                <MenuItem Header="_Abort" Command="{Binding AbortCommand}" />
+                <MenuItem Header="_Run" Command="{Binding RunSequenceCommand}" InputGestureText="F5" />
+                <MenuItem Header="_Pause" Command="{Binding PauseCommand}" InputGestureText="F6" />
+                <MenuItem Header="Re_sume" Command="{Binding ResumeCommand}" InputGestureText="F5" />
+                <MenuItem Header="_Abort" Command="{Binding AbortCommand}" InputGestureText="Shift+F5" />
                 <Separator />
-                <MenuItem Header="Step _Over" Command="{Binding StepOverCommand}" />
-                <MenuItem Header="Toggle _Breakpoint" Command="{Binding ToggleBreakpointCommand}" />
+                <MenuItem Header="Step _Over" Command="{Binding StepOverCommand}" InputGestureText="F10" />
+                <MenuItem Header="Toggle _Breakpoint" Command="{Binding ToggleBreakpointCommand}" InputGestureText="F9" />
+                <Separator />
+                <MenuItem Header="_Reset" Command="{Binding ResetCommand}" />
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Step Properties" IsCheckable="True" IsChecked="True" />
                 <MenuItem Header="_Execution Window" IsCheckable="True" IsChecked="True" />
+                <Separator />
+                <MenuItem Header="_Variables" IsCheckable="True" />
             </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="_About" />

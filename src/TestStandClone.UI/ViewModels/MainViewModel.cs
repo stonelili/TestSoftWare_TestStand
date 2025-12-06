@@ -1,8 +1,13 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
+using Microsoft.Win32;
 using TestStandClone.Core;
+using TestStandClone.Core.ProcessModels;
+using TestStandClone.Core.Reporting;
+using TestStandClone.Core.Serialization;
 using TestStandClone.Core.Steps;
+using TestStandClone.Core.Variables;
 using TestStandClone.UI.Commands;
 
 namespace TestStandClone.UI.ViewModels
@@ -13,10 +18,15 @@ namespace TestStandClone.UI.ViewModels
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly Engine _engine;
+        private readonly SequenceFileSerializer _serializer;
+        private readonly ReportGenerator _reportGenerator;
         private Sequence _loadedSequence;
         private bool _isRunning;
         private TestStep? _selectedStep;
         private string _executionStatus = "Ready";
+        private string _currentFilePath = string.Empty;
+        private VariableManager _localVariables;
+        private VariableManager _fileGlobalVariables;
 
         /// <summary>
         /// The currently loaded test sequence.
@@ -88,6 +98,52 @@ namespace TestStandClone.UI.ViewModels
         }
 
         /// <summary>
+        /// Current file path of the loaded sequence.
+        /// </summary>
+        public string CurrentFilePath
+        {
+            get => _currentFilePath;
+            set
+            {
+                if (_currentFilePath != value)
+                {
+                    _currentFilePath = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(WindowTitle));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Window title with file name.
+        /// </summary>
+        public string WindowTitle
+        {
+            get
+            {
+                var fileName = string.IsNullOrEmpty(CurrentFilePath) 
+                    ? "Untitled" 
+                    : System.IO.Path.GetFileName(CurrentFilePath);
+                return $"TestStand Clone - {fileName}";
+            }
+        }
+
+        /// <summary>
+        /// Local variables for current execution.
+        /// </summary>
+        public VariableManager LocalVariables => _localVariables;
+
+        /// <summary>
+        /// File global variables.
+        /// </summary>
+        public VariableManager FileGlobalVariables => _fileGlobalVariables;
+
+        /// <summary>
+        /// Station global variables.
+        /// </summary>
+        public VariableManager StationGlobalVariables => VariableManager.StationGlobals;
+
+        /// <summary>
         /// The execution engine instance.
         /// </summary>
         public Engine Engine => _engine;
@@ -139,6 +195,31 @@ namespace TestStandClone.UI.ViewModels
         /// </summary>
         public ICommand ToggleBreakpointCommand { get; }
 
+        /// <summary>
+        /// Command to create a new sequence.
+        /// </summary>
+        public ICommand NewSequenceCommand { get; }
+
+        /// <summary>
+        /// Command to open a sequence file.
+        /// </summary>
+        public ICommand OpenSequenceCommand { get; }
+
+        /// <summary>
+        /// Command to save the current sequence.
+        /// </summary>
+        public ICommand SaveSequenceCommand { get; }
+
+        /// <summary>
+        /// Command to save the sequence with a new name.
+        /// </summary>
+        public ICommand SaveSequenceAsCommand { get; }
+
+        /// <summary>
+        /// Command to generate HTML report.
+        /// </summary>
+        public ICommand GenerateReportCommand { get; }
+
         #endregion
 
         /// <summary>
@@ -147,7 +228,11 @@ namespace TestStandClone.UI.ViewModels
         public MainViewModel()
         {
             _engine = new Engine();
+            _serializer = new SequenceFileSerializer();
+            _reportGenerator = new ReportGenerator();
             _loadedSequence = CreateDemoSequence();
+            _localVariables = new VariableManager(VariableScope.Local);
+            _fileGlobalVariables = new VariableManager(VariableScope.FileGlobal);
 
             // Subscribe to engine events
             _engine.ExecutionPaused += (s, e) => 
@@ -170,7 +255,7 @@ namespace TestStandClone.UI.ViewModels
                 ExecutionStatus = $"Executing: {e.Step.Name}";
             };
 
-            // Initialize commands
+            // Initialize execution commands
             RunSequenceCommand = new RelayCommand(
                 async () => await RunSequenceAsync(),
                 () => CanRun
@@ -215,6 +300,32 @@ namespace TestStandClone.UI.ViewModels
                 },
                 () => SelectedStep != null
             );
+
+            // Initialize file commands
+            NewSequenceCommand = new RelayCommand(
+                () => NewSequence(),
+                () => !IsRunning
+            );
+
+            OpenSequenceCommand = new RelayCommand(
+                async () => await OpenSequenceAsync(),
+                () => !IsRunning
+            );
+
+            SaveSequenceCommand = new RelayCommand(
+                async () => await SaveSequenceAsync(),
+                () => !IsRunning
+            );
+
+            SaveSequenceAsCommand = new RelayCommand(
+                async () => await SaveSequenceAsAsync(),
+                () => !IsRunning
+            );
+
+            GenerateReportCommand = new RelayCommand(
+                async () => await GenerateReportAsync(),
+                () => !IsRunning && LoadedSequence.Status != SequenceStatus.Idle
+            );
         }
 
         private void RefreshCommandStates()
@@ -225,6 +336,95 @@ namespace TestStandClone.UI.ViewModels
             OnPropertyChanged(nameof(CanAbort));
             OnPropertyChanged(nameof(CanStepOver));
         }
+
+        #region File Operations
+
+        private void NewSequence()
+        {
+            LoadedSequence = new Sequence
+            {
+                Name = "New Sequence",
+                Description = "A new test sequence"
+            };
+            LoadedSequence.SyncStepsCollection();
+            CurrentFilePath = string.Empty;
+            ExecutionStatus = "Ready";
+        }
+
+        private async Task OpenSequenceAsync()
+        {
+            var dialog = new OpenFileDialog
+            {
+                Filter = "Sequence Files (*.json)|*.json|All Files (*.*)|*.*",
+                Title = "Open Sequence File"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                var sequence = await _serializer.LoadAsync(dialog.FileName);
+                if (sequence != null)
+                {
+                    LoadedSequence = sequence;
+                    CurrentFilePath = dialog.FileName;
+                    ExecutionStatus = "Ready";
+                }
+            }
+        }
+
+        private async Task SaveSequenceAsync()
+        {
+            if (string.IsNullOrEmpty(CurrentFilePath))
+            {
+                await SaveSequenceAsAsync();
+            }
+            else
+            {
+                await _serializer.SaveAsync(LoadedSequence, CurrentFilePath);
+                ExecutionStatus = "Saved";
+            }
+        }
+
+        private async Task SaveSequenceAsAsync()
+        {
+            var dialog = new SaveFileDialog
+            {
+                Filter = "Sequence Files (*.json)|*.json|All Files (*.*)|*.*",
+                Title = "Save Sequence File",
+                FileName = LoadedSequence.Name + ".json"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                await _serializer.SaveAsync(LoadedSequence, dialog.FileName);
+                CurrentFilePath = dialog.FileName;
+                ExecutionStatus = "Saved";
+            }
+        }
+
+        private async Task GenerateReportAsync()
+        {
+            var dialog = new SaveFileDialog
+            {
+                Filter = "HTML Report (*.html)|*.html|Text Report (*.txt)|*.txt",
+                Title = "Generate Report",
+                FileName = $"{LoadedSequence.Name}_Report"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                if (dialog.FileName.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+                {
+                    await _reportGenerator.SaveHtmlReportAsync(LoadedSequence, dialog.FileName);
+                }
+                else
+                {
+                    await _reportGenerator.SaveTextReportAsync(LoadedSequence, dialog.FileName);
+                }
+                ExecutionStatus = "Report Generated";
+            }
+        }
+
+        #endregion
 
         /// <summary>
         /// Creates a demo sequence with a mix of step types including Setup, Main, Cleanup.
@@ -308,6 +508,10 @@ namespace TestStandClone.UI.ViewModels
             {
                 IsRunning = true;
                 ExecutionStatus = "Running";
+                
+                // Reset local variables for new execution
+                _localVariables.Clear();
+                
                 await _engine.ExecuteSequenceAsync(LoadedSequence);
                 
                 ExecutionStatus = LoadedSequence.Status switch
