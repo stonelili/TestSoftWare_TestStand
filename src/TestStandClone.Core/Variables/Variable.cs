@@ -113,7 +113,8 @@ namespace TestStandClone.Core.Variables
 
             try
             {
-                return (T)Convert.ChangeType(Value, typeof(T))!;
+                var converted = Convert.ChangeType(Value, typeof(T));
+                return converted != null ? (T)converted : default;
             }
             catch
             {

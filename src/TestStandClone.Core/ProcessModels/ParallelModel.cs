@@ -90,7 +90,8 @@ namespace TestStandClone.Core.ProcessModels
         }
 
         /// <summary>
-        /// Creates a shallow clone of a sequence for parallel execution.
+        /// Creates a deep clone of a sequence for parallel execution.
+        /// Each parallel thread gets its own step instances to avoid race conditions.
         /// </summary>
         private static Sequence CloneSequence(Sequence original)
         {
@@ -100,21 +101,64 @@ namespace TestStandClone.Core.ProcessModels
                 Description = original.Description
             };
 
-            // Clone steps - in a real implementation, this would deep clone
+            // Deep clone steps - each thread needs its own step instances
+            // Note: This is a simplified clone that creates new step instances
+            // For full functionality, step-specific cloning should be implemented
             foreach (var step in original.SetupSteps)
             {
-                clone.SetupSteps.Add(step);
+                clone.SetupSteps.Add(CloneStep(step));
             }
             foreach (var step in original.MainSteps)
             {
-                clone.MainSteps.Add(step);
+                clone.MainSteps.Add(CloneStep(step));
             }
             foreach (var step in original.CleanupSteps)
             {
-                clone.CleanupSteps.Add(step);
+                clone.CleanupSteps.Add(CloneStep(step));
             }
 
             clone.SyncStepsCollection();
+            return clone;
+        }
+
+        /// <summary>
+        /// Creates a clone of a step with fresh state.
+        /// </summary>
+        private static TestStep CloneStep(TestStep original)
+        {
+            // Create new instance based on step type
+            TestStep clone = original switch
+            {
+                DelayStep delay => new DelayStep(delay.Name, delay.DelayMilliseconds),
+                NumericLimitStep numeric => new NumericLimitStep(numeric.Name, numeric.LowerLimit, numeric.UpperLimit)
+                {
+                    MinGeneratedValue = numeric.MinGeneratedValue,
+                    MaxGeneratedValue = numeric.MaxGeneratedValue
+                },
+                Steps.PassFailStep passFail => new Steps.PassFailStep(passFail.Name, passFail.ExpectedResult),
+                Steps.StringValueStep stringVal => new Steps.StringValueStep(stringVal.Name, stringVal.ExpectedValue)
+                {
+                    ActualValue = stringVal.ActualValue
+                },
+                Steps.ActionStep action => new Steps.ActionStep(action.Name)
+                {
+                    Action = action.Action,
+                    SyncAction = action.SyncAction
+                },
+                Steps.LabelStep label => new Steps.LabelStep(label.Name, label.LabelId),
+                Steps.GotoStep gotoStep => new Steps.GotoStep(gotoStep.Name, gotoStep.TargetLabelId),
+                Steps.LoopStep loop => new Steps.LoopStep(loop.Name, loop.LoopCount, loop.Type),
+                Steps.MessagePopupStep popup => new Steps.MessagePopupStep(popup.Name, popup.Title, popup.Message)
+                {
+                    Buttons = popup.Buttons
+                },
+                _ => throw new NotSupportedException($"Step type {original.GetType().Name} is not supported for cloning")
+            };
+
+            clone.Description = original.Description;
+            clone.IsEnabled = original.IsEnabled;
+            clone.HasBreakpoint = original.HasBreakpoint;
+
             return clone;
         }
 

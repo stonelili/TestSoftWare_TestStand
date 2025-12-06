@@ -254,10 +254,12 @@ namespace TestStandClone.Core.Serialization
         {
             if (props.TryGetValue(key, out var value))
             {
-                if (value is JsonElement element && element.ValueKind == JsonValueKind.True || 
-                    value is JsonElement element2 && element2.ValueKind == JsonValueKind.False)
+                if (value is JsonElement element)
                 {
-                    return ((JsonElement)value).GetBoolean();
+                    if (element.ValueKind == JsonValueKind.True || element.ValueKind == JsonValueKind.False)
+                    {
+                        return element.GetBoolean();
+                    }
                 }
                 if (value is bool boolValue) return boolValue;
                 if (bool.TryParse(value?.ToString(), out bool parsed)) return parsed;

@@ -12,6 +12,7 @@ namespace TestStandClone.Core.ProcessModels
         private readonly List<UUT> _batch = new List<UUT>();
         private readonly SemaphoreSlim _syncBarrier = new SemaphoreSlim(0);
         private int _completedCount;
+        private int _syncWaitingCount;
         private readonly object _syncLock = new object();
 
         /// <summary>
@@ -36,6 +37,7 @@ namespace TestStandClone.Core.ProcessModels
             _batch.Clear();
             _batch.AddRange(uuts);
             _completedCount = 0;
+            _syncWaitingCount = 0;
 
             // Start all UUTs in parallel
             var tasks = uuts.Select(uut => RunAsync(sequence, uut));
@@ -91,13 +93,17 @@ namespace TestStandClone.Core.ProcessModels
             int waitingCount;
             lock (_syncLock)
             {
-                waitingCount = Interlocked.Increment(ref _completedCount);
+                _syncWaitingCount++;
+                waitingCount = _syncWaitingCount;
             }
 
             // If all threads have reached the barrier, release them
             if (waitingCount >= _batch.Count)
             {
-                _completedCount = 0;
+                lock (_syncLock)
+                {
+                    _syncWaitingCount = 0;
+                }
                 // Release all waiting threads
                 for (int i = 0; i < _batch.Count; i++)
                 {

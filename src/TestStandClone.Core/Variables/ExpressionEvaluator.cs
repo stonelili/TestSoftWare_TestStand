@@ -111,8 +111,8 @@ namespace TestStandClone.Core.Variables
         {
             result = 0;
             
-            // Remove whitespace
-            expression = expression.Replace(" ", "");
+            // Trim whitespace but preserve inner spaces for string comparisons
+            expression = expression.Trim();
             
             // Check if it's a simple number
             if (double.TryParse(expression, out result))
@@ -120,39 +120,42 @@ namespace TestStandClone.Core.Variables
                 return true;
             }
 
+            // For numeric expressions, remove spaces around operators
+            string numericExpr = expression;
+            
             // Try to evaluate simple arithmetic expressions
             try
             {
                 // Handle addition
-                if (expression.Contains('+') && !expression.StartsWith('+'))
+                if (numericExpr.Contains('+') && !numericExpr.StartsWith('+'))
                 {
-                    var parts = expression.Split('+');
+                    var parts = numericExpr.Split('+');
                     if (parts.Length == 2 && 
-                        double.TryParse(parts[0], out double left) && 
-                        double.TryParse(parts[1], out double right))
+                        double.TryParse(parts[0].Trim(), out double left) && 
+                        double.TryParse(parts[1].Trim(), out double right))
                     {
-                        result = left + right;
+                         result = left + right;
                         return true;
                     }
                 }
 
                 // Handle subtraction (but not negative numbers)
-                var subMatch = Regex.Match(expression, @"^(.+)-(.+)$");
+                var subMatch = Regex.Match(numericExpr, @"^(.+)-(.+)$");
                 if (subMatch.Success &&
-                    double.TryParse(subMatch.Groups[1].Value, out double subLeft) &&
-                    double.TryParse(subMatch.Groups[2].Value, out double subRight))
+                    double.TryParse(subMatch.Groups[1].Value.Trim(), out double subLeft) &&
+                    double.TryParse(subMatch.Groups[2].Value.Trim(), out double subRight))
                 {
                     result = subLeft - subRight;
                     return true;
                 }
 
                 // Handle multiplication
-                if (expression.Contains('*'))
+                if (numericExpr.Contains('*'))
                 {
-                    var parts = expression.Split('*');
+                    var parts = numericExpr.Split('*');
                     if (parts.Length == 2 &&
-                        double.TryParse(parts[0], out double mulLeft) &&
-                        double.TryParse(parts[1], out double mulRight))
+                        double.TryParse(parts[0].Trim(), out double mulLeft) &&
+                        double.TryParse(parts[1].Trim(), out double mulRight))
                     {
                         result = mulLeft * mulRight;
                         return true;
@@ -160,12 +163,12 @@ namespace TestStandClone.Core.Variables
                 }
 
                 // Handle division
-                if (expression.Contains('/'))
+                if (numericExpr.Contains('/'))
                 {
-                    var parts = expression.Split('/');
+                    var parts = numericExpr.Split('/');
                     if (parts.Length == 2 &&
-                        double.TryParse(parts[0], out double divLeft) &&
-                        double.TryParse(parts[1], out double divRight) &&
+                        double.TryParse(parts[0].Trim(), out double divLeft) &&
+                        double.TryParse(parts[1].Trim(), out double divRight) &&
                         divRight != 0)
                     {
                         result = divLeft / divRight;
