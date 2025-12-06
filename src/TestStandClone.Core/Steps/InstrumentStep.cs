@@ -287,10 +287,22 @@ namespace TestStandClone.Core.Steps
         public string FirmwareVersion { get; private set; } = string.Empty;
 
         /// <summary>
+        /// Creates a new InstrumentIdentifyStep with default values.
+        /// </summary>
+        public InstrumentIdentifyStep()
+        {
+            Name = "Instrument Identify";
+            Command = "*IDN?";
+            ValidateResponse = false;
+        }
+
+        /// <summary>
         /// Creates a new InstrumentIdentifyStep.
         /// </summary>
-        public InstrumentIdentifyStep(string name, string resourceAddress) : base(name, "*IDN?")
+        public InstrumentIdentifyStep(string name, string resourceAddress)
         {
+            Name = name;
+            Command = "*IDN?";
             ResourceAddress = resourceAddress;
             ValidateResponse = false;
         }
@@ -360,11 +372,22 @@ namespace TestStandClone.Core.Steps
         public string Units { get; set; } = string.Empty;
 
         /// <summary>
+        /// Creates a new InstrumentMeasureStep with default values.
+        /// </summary>
+        public InstrumentMeasureStep()
+        {
+            Name = "Instrument Measure";
+            Command = "MEAS?";
+        }
+
+        /// <summary>
         /// Creates a new InstrumentMeasureStep.
         /// </summary>
         public InstrumentMeasureStep(string name, string resourceAddress, string measureCommand, double lowLimit, double highLimit)
-            : base(name, resourceAddress, measureCommand)
         {
+            Name = name;
+            ResourceAddress = resourceAddress;
+            Command = measureCommand;
             LowLimit = lowLimit;
             HighLimit = highLimit;
         }
