@@ -21,9 +21,7 @@
         <converters:StatusToColorConverter x:Key="StatusToColorConverter" />
         <converters:RowNumberConverter x:Key="RowNumberConverter" />
         <converters:TypeNameConverter x:Key="TypeNameConverter" />
-        
-        <!-- Boolean to Visibility Converter -->
-        <BooleanToVisibilityConverter x:Key="BoolToVisConverter" />
+        <converters:NullToVisibilityConverter x:Key="NullToVisConverter" />
         
         <!-- Breakpoint indicator style -->
         <Style x:Key="BreakpointStyle" TargetType="Ellipse">
@@ -260,10 +258,10 @@
                             <!-- Show when no step is selected -->
                             <TextBlock Text="Select a step to view properties" 
                                        FontStyle="Italic" Foreground="Gray"
-                                       Visibility="{Binding SelectedStep, Converter={StaticResource BoolToVisConverter}, ConverterParameter=Invert}" />
+                                       Visibility="{Binding SelectedStep, Converter={StaticResource NullToVisConverter}, ConverterParameter=Invert}" />
 
                             <!-- Step Properties when selected -->
-                            <StackPanel Visibility="{Binding SelectedStep, Converter={StaticResource BoolToVisConverter}}">
+                            <StackPanel Visibility="{Binding SelectedStep, Converter={StaticResource NullToVisConverter}}">
                                 <TextBlock Text="Name" FontWeight="Bold" Margin="0,0,0,3" />
                                 <TextBox Text="{Binding SelectedStep.Name, Mode=OneWay}" IsReadOnly="True" Margin="0,0,0,10" Padding="5,3" />
 

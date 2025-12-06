@@ -63,18 +63,35 @@ namespace TestStandClone.Core.Steps
             {
                 await engine.ExecuteSequenceAsync(TargetSequence);
 
-                // Check if all steps passed
-                bool allPassed = TargetSequence.Steps.All(s => s.Status == StepStatus.Passed);
-                bool anyFailed = TargetSequence.Steps.Any(s => s.Status == StepStatus.Failed);
-                bool anyError = TargetSequence.Steps.Any(s => s.Status == StepStatus.Error);
+                // Determine sequence result with a single pass through steps
+                bool hasError = false;
+                bool hasFailed = false;
+                bool allPassed = true;
 
-                if (anyError)
+                foreach (var step in TargetSequence.Steps)
+                {
+                    if (step.Status == StepStatus.Error)
+                    {
+                        hasError = true;
+                        break;
+                    }
+                    if (step.Status == StepStatus.Failed)
+                    {
+                        hasFailed = true;
+                    }
+                    if (step.Status != StepStatus.Passed)
+                    {
+                        allPassed = false;
+                    }
+                }
+
+                if (hasError)
                 {
                     SequenceResult = StepStatus.Error;
                     Status = StepStatus.Error;
                     ResultText = $"Sequence '{TargetSequence.Name}' completed with errors";
                 }
-                else if (anyFailed)
+                else if (hasFailed)
                 {
                     SequenceResult = StepStatus.Failed;
                     Status = StepStatus.Failed;

@@ -43,6 +43,22 @@ namespace TestStandClone.Core
         public event EventHandler<StepEventArgs>? AfterStepExecute;
 
         /// <summary>
+        /// Safely releases the pause semaphore if not already released.
+        /// </summary>
+        private void TryReleaseSemaphore()
+        {
+            try
+            {
+                _pauseSemaphore.Release();
+            }
+            catch (SemaphoreFullException)
+            {
+                // Semaphore was already released - this is expected when multiple
+                // resume/abort calls occur before the waiting thread can acquire it
+            }
+        }
+
+        /// <summary>
         /// Gets whether execution is currently paused.
         /// </summary>
         public bool IsPaused
@@ -116,14 +132,7 @@ namespace TestStandClone.Core
                 {
                     IsPaused = false;
                     _isSingleStepping = false;
-                    try
-                    {
-                        _pauseSemaphore.Release();
-                    }
-                    catch (SemaphoreFullException)
-                    {
-                        // Already released
-                    }
+                    TryReleaseSemaphore();
                     ExecutionResumed?.Invoke(this, EventArgs.Empty);
                 }
             }
@@ -139,14 +148,7 @@ namespace TestStandClone.Core
                 if (IsPaused)
                 {
                     _isSingleStepping = true;
-                    try
-                    {
-                        _pauseSemaphore.Release();
-                    }
-                    catch (SemaphoreFullException)
-                    {
-                        // Already released
-                    }
+                    TryReleaseSemaphore();
                 }
             }
         }
@@ -162,14 +164,7 @@ namespace TestStandClone.Core
                 if (IsPaused)
                 {
                     IsPaused = false;
-                    try
-                    {
-                        _pauseSemaphore.Release();
-                    }
-                    catch (SemaphoreFullException)
-                    {
-                        // Already released
-                    }
+                    TryReleaseSemaphore();
                 }
                 ExecutionAborted?.Invoke(this, EventArgs.Empty);
             }

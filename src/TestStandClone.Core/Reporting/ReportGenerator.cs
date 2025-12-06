@@ -191,6 +191,7 @@ namespace TestStandClone.Core.Reporting
         private static string Truncate(string text, int maxLength)
         {
             if (string.IsNullOrEmpty(text)) return string.Empty;
+            if (maxLength < 4) maxLength = 4; // Ensure minimum length for truncation
             return text.Length <= maxLength ? text : text.Substring(0, maxLength - 3) + "...";
         }
     }
