@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -9,14 +9,8 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 
-  <!-- Exclude src directory from the original TestSoftware project -->
   <ItemGroup>
-    <Compile Remove="src\**" />
-    <Page Remove="src\**" />
-    <ApplicationDefinition Remove="src\**" />
-    <Content Remove="src\**" />
-    <EmbeddedResource Remove="src\**" />
-    <None Remove="src\**" />
+    <ProjectReference Include="..\TestStandClone.Core\TestStandClone.Core.csproj" />
   </ItemGroup>
 
 </Project>
